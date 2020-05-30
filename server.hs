@@ -17,7 +17,6 @@ import           Data.Maybe
 import           Data.List                     as List
 import           Data.Map                      as Map
 
-
 type RoomId = String
 type Room = (Maybe Handle, Maybe Handle)
 type RoomList = Map RoomId Room
@@ -109,16 +108,16 @@ beginGame roomId (Just player1h, Just player2h) roomList = do
   hPutStrLn player1h ("You start!~" ++ printBoard emptyBoard)
   hPutStrLn player2h (printBoard emptyBoard)
   forkIO
-    (commandProcessor roomId
-                      (Just player1h, Just player2h)
-                      player1h
-                      emptyBoard
-                      roomList
+    (processCommand roomId
+                    (Just player1h, Just player2h)
+                    player1h
+                    emptyBoard
+                    roomList
     ) -- new thread for current room
   return ()
 
-commandProcessor :: RoomId -> Room -> Handle -> Board -> RoomListState -> IO ()
-commandProcessor roomId (Just player1h, Just player2h) currPlayerh board roomList
+processCommand :: RoomId -> Room -> Handle -> Board -> RoomListState -> IO ()
+processCommand roomId (Just player1h, Just player2h) currPlayerh board roomList
   = do
     let opponenth = getOpponent player1h player2h currPlayerh
     request <- hGetLine currPlayerh -- get message from client (ex: "move 1 1")
@@ -132,11 +131,11 @@ commandProcessor roomId (Just player1h, Just player2h) currPlayerh board roomLis
         prepareGame player2h roomList
       "show" -> do
         hPutStrLn currPlayerh ("Showing board...~" ++ printBoard board)
-        commandProcessor roomId
-                         (Just player1h, Just player2h)
-                         currPlayerh
-                         board
-                         roomList
+        processCommand roomId
+                       (Just player1h, Just player2h)
+                       currPlayerh
+                       board
+                       roomList
       "move" -> do
         let move     = parseMove (tail cmd)
         let token    = if currPlayerh == player1h then 'X' else '0'
@@ -155,25 +154,25 @@ commandProcessor roomId (Just player1h, Just player2h) currPlayerh board roomLis
               else do
                 hPutStrLn currPlayerh (printBoard newBoard)
                 hPutStrLn opponenth ("Opponent moved!~" ++ printBoard newBoard)
-                commandProcessor roomId
-                                 (Just player1h, Just player2h)
-                                 opponenth
-                                 newBoard
-                                 roomList
+                processCommand roomId
+                               (Just player1h, Just player2h)
+                               opponenth
+                               newBoard
+                               roomList
           else do
             hPutStrLn currPlayerh "Impossible move!"
-            commandProcessor roomId
-                             (Just player1h, Just player2h)
-                             currPlayerh
-                             board
-                             roomList
+            processCommand roomId
+                           (Just player1h, Just player2h)
+                           currPlayerh
+                           board
+                           roomList
       _ -> do
         hPutStrLn currPlayerh "Unknown command!"
-        commandProcessor roomId
-                         (Just player1h, Just player2h)
-                         currPlayerh
-                         board
-                         roomList
+        processCommand roomId
+                       (Just player1h, Just player2h)
+                       currPlayerh
+                       board
+                       roomList
 
 restartGame :: RoomId -> Room -> RoomListState -> IO ()
 restartGame roomId (Just player1h, Just player2h) roomList = do

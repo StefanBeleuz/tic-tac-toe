@@ -37,7 +37,7 @@ prepareGame handle = do
 
 beginGame :: Handle -> IO ()
 beginGame handle = do
-  response <- hGetLine handle -- get player id
+  response <- hGetLine handle
   if "Waiting" `isPrefixOf` response
     then do
       putStrLn response
@@ -51,48 +51,44 @@ play :: Handle -> Int -> IO ()
 play handle player = do
   response <- hGetLine handle
   putStrLn (formatResponse response)
-  if "Your opponent has left"
-     `isPrefixOf` response
-     ||           "Disconnected"
-     `isPrefixOf` response
-  then
-    prepareGame handle
-  else
-    if "You won"
-       `isPrefixOf` response
-       ||           "You lost"
-       `isPrefixOf` response
-       ||           "Draw"
-       `isPrefixOf` response
-    then
-      do
-        response <- hGetLine handle
-        putStrLn (formatResponse response)
-        checkRequest <- timeout 5000000 getLine -- 10s wait time to answer
-        let request = getString checkRequest
-        hPutStrLn handle request
-        response <- hGetLine handle
-        putStrLn (formatResponse response)
-        if response == "Restarting..."
-          then beginGame handle
-          else prepareGame handle
+  if response == "Your opponent has left!" || response == "Disconnected!"
+    then prepareGame handle
     else
-      if "Opponent"
-           `isPrefixOf` response
-           ||           "Unknown command"
-           `isPrefixOf` response
-           ||           "Impossible move"
-           `isPrefixOf` response
-           ||           "Showing board"
-           `isPrefixOf` response
-           ||           "You start"
-           `isPrefixOf` response
-        then do
-          putStrLn "Now is your turn..."
-          request <- getLine
+      if response
+         == "You won!"
+         || response
+         == "You lost!"
+         || response
+         == "Draw!"
+      then
+        do
+          response <- hGetLine handle
+          putStrLn (formatResponse response)
+          checkRequest <- timeout 5000000 getLine -- 5s wait time to answer
+          let request = getString checkRequest
           hPutStrLn handle request
-          play handle player
-        else play handle player
+          response <- hGetLine handle
+          putStrLn (formatResponse response)
+          if response == "Restarting..."
+            then beginGame handle
+            else prepareGame handle
+      else
+        if "Opponent moved"
+             `isPrefixOf` response
+             ||           response
+             ==           "Unknown command!"
+             ||           response
+             ==           "Impossible move!"
+             ||           "Showing board"
+             `isPrefixOf` response
+             ||           "You start"
+             `isPrefixOf` response
+          then do
+            putStrLn "Now is your turn..."
+            request <- getLine
+            hPutStrLn handle request
+            play handle player
+          else play handle player
 
 getString :: Maybe String -> String
 getString Nothing        = "no"
